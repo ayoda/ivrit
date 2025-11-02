@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Ivrit Trainer Mobile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    h2, #topicTitle {
+      text-align: center;
+      margin: 12px 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    #fileList {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      padding: 15px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+      background: #ffffff;
+      border-radius: 12px;
+      margin: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    #fileList .button {
+      display: inline-block;
+      width: auto;
+      min-width: 220px;
+      max-width: 280px;
+      padding: 11px 16px;
+      font-size: 1rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: white;
+      border: 2px solid #007bff;
+      color: #007bff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #fileList .button:hover {
+      background: #007bff;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+    }
+
+    #mainContainer {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      border-top: 1px solid #ddd;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .scroll-zone {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #leftZone {
+      background: #fff9c4;
+      border-right: 2px solid #ddd;
+    }
+
+    #rightZone {
+      background: #b3e5fc;
+    }
+
+    .button {
+      display: block;
+      width: calc(100% - 20px);
+      margin: 0 10px;
+      padding: 13px 16px;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: white;
+      font-size: 1.15rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .button:hover:not([disabled]) {
+      background: #f8f9fa;
+      transform: translateY(-1px);
+    }
+
+    .green { background-color: #28a745 !important; color: white; border-color: #28a745; }
+    .red { background-color: #dc3545 !important; color: white; border-color: #dc3545; }
+    .yellow { background-color: #ffc107 !important; color: black; border-color: #ffc107; }
+    .blue { background-color: #007bff !important; color: white; border-color: #007bff; }
+
+    #bottomControls {
+      padding: 12px;
+      background: #ffffff;
+      border-top: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+    }
+
+    #progressBarWrapper {
+      width: 90%;
+      max-width: 400px;
+      height: 22px;
+      background: #e9ecef;
+      border-radius: 11px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #28a745, #20c997);
+      transition: width 0.4s ease;
+    }
+
+    #stats, #result, #hintCount {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #2c3e50;
+    }
+
+    .control-btn {
+      min-width: 110px;
+      font-size: 0.9rem;
+      padding: 8px 14px;
+    }
+
+    @media (max-width: 600px) {
+      #fileList .button {
+        min-width: 160px;
+        font-size: 0.95rem;
+        padding: 10px 12px;
+      }
+      .button { font-size: 1rem; padding: 11px 14px; }
+      h2, #topicTitle { font-size: 1.15rem; }
+      .control-btn { font-size: 0.85rem; padding: 7px 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <h2 id="title">Что будем тренировать?</h2>
+  <div id="fileList"></div>
+
+  <div id="gameArea" style="display:none; flex-direction: column; height: 100vh;">
+    <div id="topicTitle"></div>
+
+    <div id="mainContainer">
+      <div id="leftZone" class="scroll-zone"><div id="words"></div></div>
+      <div id="rightZone" class="scroll-zone"><div id="transliterations"></div></div>
+    </div>
+
+    <div id="bottomControls">
+      <div id="progressBarWrapper"><div id="progressBar"></div></div>
+      <div id="stats"></div>
+      <div id="result"></div>
+      <div id="hintCount">Подсказки использованы: 0</div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+        <button id="hintButton" class="button control-btn">Подсказка</button>
+        <button id="loadProgressButton" class="button control-btn">Загрузить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const availableWordFiles = [
+      "1.Местоимения", "2.Знакомства", "3.Глаголы", "4.Вопросы",
+      "5.Числительные", "6.(94)Вводные и служебные слова. Наречия",
+      "6.Прилагательные", "7.Места и направления", "7.Числа от 1 до 100",
+      "8.Время", "8.Числа от 100", "9.Семья и отношения", 
+      "9.Числа. Порядковые числительные", "10.Важные глаголы. Настоящее время",
+      "11.Меры измерения", "11.Утвердительные выражения и фразы", 
+      "12.Вопросительные выражения и фразы", "12.Ёмкости", 
+      "13.Префиксальные глаголы", "17.Дни недели", "18.Часы. Время суток",
+      "19.Месяцы. Времена года", "20.Турпоездка", "21.Гостиница",
+      "22.Достопримечательности", "23.Аэропорт", "24.Самолёт", 
+      "25.Поезд", "26.Корабль", "27.Городской транспорт", 
+      "28.Город. Жизнь в городе", "29.Городские учреждения", 
+      "30.Вывески. Указатели", "31.Покупки"
+    ];
+
+    const fileListDiv = document.getElementById("fileList");
+    const gameArea = document.getElementById("gameArea");
+    const wordsDiv = document.getElementById("words");
+    const transDiv = document.getElementById("transliterations");
+    const hintButton = document.getElementById("hintButton");
+    const hintCountDiv = document.getElementById("hintCount");
+    const loadProgressButton = document.getElementById("loadProgressButton");
+    const topicTitle = document.getElementById("topicTitle");
+    const progressBar = document.getElementById("progressBar");
+    const statsDiv = document.getElementById("stats");
+    const resultDiv = document.getElementById("result");
+
+    let first = null;
+    let correct = 0;
+    let attempts = 0;
+    let hintCount = 0;
+    const gameStats = { correct: 0, attempts: 0, usedHints: 0 };
+
+    function showFileOptions() {
+      fileListDiv.innerHTML = '';
+      document.getElementById("title").textContent = "Что будем тренировать?";
+      availableWordFiles.forEach(file => {
+        const btn = document.createElement("button");
+        btn.className = "button";
+        btn.textContent = file;
+        btn.title = file;
+        btn.onclick = () => loadWordFile(file);
+        fileListDiv.appendChild(btn);
+      });
+    }
+
+    function loadWordFile(fileName) {
+      const oldScript = document.querySelector('script[data-wordfile]');
+      if (oldScript) oldScript.remove();
+
+      const url = `${encodeURIComponent(fileName)}.js`;
+      console.log("%c[Загрузка темы]", "color: #007bff; font-weight: bold;", fileName);
+      console.log("URL запроса:", url);
+
+      const script = document.createElement('script');
+      script.src = url;
+      script.dataset.wordfile = 'true';
+
+      script.onload = () => {
+        console.log("%cУспешно загружен:", "color: green; font-weight: bold;", fileName);
+        if (typeof wordSets === 'undefined') {
+          console.error("%cОШИБКА: wordSets не определён в файле!", "color: red;");
+          alert(`Файл ${fileName}.js не содержит wordSets`);
+          return;
+        }
+
+        fetch(url)
+          .then(r => r.text())
+          .then(text => {
+            const firstLine = text.split('\n')[0];
+            const title = firstLine.replace(/^\/\/\s*/, '').trim() || fileName;
+            topicTitle.textContent = title;
+            console.log("Заголовок темы:", title);
+          })
+          .catch(err => {
+            console.warn("Не удалось прочитать файл для заголовка:", err);
+            topicTitle.textContent = fileName;
+          });
+
+        startGameWithWords(wordSets);
+      };
+
+      script.onerror = () => {
+        console.error("%c404: Файл не найден →", "color: red; font-weight: bold;", url);
+        alert(`НЕ НАЙДЕН: ${fileName}.js\nПроверьте имя файла и папку.`);
+        topicTitle.textContent = fileName;
+      };
+
+      document.body.appendChild(script);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function startGameWithWords(wordSets) {
+      document.getElementById("title").textContent = "Выбери соответствие:";
+      fileListDiv.style.display = "none";
+      gameArea.style.display = "flex";
+
+      const flatWords = wordSets.flat();
+      if (flatWords.length === 0) {
+        resultDiv.textContent = "Нет слов в этом наборе.";
+        console.warn("wordSets пустой!");
+        return;
+      }
+
+      shuffle(flatWords);
+      const selected = flatWords.slice(0, Math.min(15, flatWords.length));
+
+      wordsDiv.innerHTML = '';
+      transDiv.innerHTML = '';
+      resultDiv.textContent = '';
+      progressBar.style.width = '0%';
+      statsDiv.textContent = '';
+      correct = 0;
+      attempts = 0;
+      hintCount = 0;
+      hintCountDiv.textContent = "Подсказки использованы: 0";
+      first = null;
+
+      selected.forEach(item => {
+        const btn = document.createElement("button");
+        btn.className = "button";
+        btn.textContent = item.ru;
+        btn.dataset.match = item.il;
+        btn.dataset.side = "ru";
+        btn.onclick = () => checkAnswer(btn);
+        wordsDiv.appendChild(btn);
+      });
+
+      const shuffled = [...selected];
+      shuffle(shuffled);
+      shuffled.forEach(item => {
+        const btn = document.createElement("button");
+        btn.className = "button";
+        btn.textContent = item.il;
+        btn.dataset.match = item.ru;
+        btn.dataset.side = "il";
+        btn.onclick = () => checkAnswer(btn);
+        transDiv.appendChild(btn);
+      });
+
+      updateStats();
+    }
+
+    function checkAnswer(btn) {
+      if (btn.disabled) return;
+      if (!first) {
+        first = btn;
+        btn.classList.add("yellow");
+      } else if (first !== btn) {
+        const isCorrect = first.dataset.match === btn.textContent;
+        if (isCorrect) {
+          first.classList.remove("yellow");
+          btn.classList.add("green");
+          first.classList.add("green");
+          first.disabled = btn.disabled = true;
+          correct++;
+          gameStats.correct++;
+        } else {
+          first.classList.add("red");
+          btn.classList.add("red");
+          setTimeout(() => {
+            first.classList.remove("red", "yellow");
+            btn.classList.remove("red");
+          }, 800);
+        }
+        attempts++;
+        gameStats.attempts++;
+        first = null;
+        updateProgress();
+        updateStats();
+
+        if (correct === wordsDiv.children.length) {
+          resultDiv.innerHTML = "<br>Готово! Отличная работа!";
+          setTimeout(() => {
+            gameArea.style.display = "none";
+            fileListDiv.style.display = "flex";
+            showFileOptions();
+          }, 2800);
+        }
+      }
+    }
+
+    function updateProgress() {
+      const total = wordsDiv.children.length;
+      const done = document.querySelectorAll(".green").length / 2;
+      progressBar.style.width = `${(done / total) * 100}%`;
+    }
+
+    function updateStats() {
+      statsDiv.textContent = `Правильных: ${correct} | Попыток: ${attempts}`;
+    }
+
+    hintButton.onclick = () => {
+      if (!first || first.disabled) return;
+      const match = first.dataset.match;
+      const side = first.dataset.side;
+      const target = side === "ru" ? transDiv : wordsDiv;
+      const matched = Array.from(target.querySelectorAll(".button:not([disabled])"))
+        .find(b => b.textContent === match);
+      if (matched) {
+        first.classList.add("blue");
+        matched.classList.add("blue");
+        hintCount++;
+        gameStats.usedHints++;
+        hintCountDiv.textContent = `Подсказки использованы: ${hintCount}`;
+        setTimeout(() => {
+          first.classList.remove("blue");
+          matched.classList.remove("blue");
+        }, 1800);
+      }
+    };
+
+    // УДАЛЕНА КНОПКА "Сохранить" — логика тоже удалена
+
+    loadProgressButton.onclick = () => {
+      const saved = localStorage.getItem('ivritProgress');
+      if (saved) {
+        Object.assign(gameStats, JSON.parse(saved));
+        alert("Прогресс загружен!");
+      } else {
+        alert("Нет сохранённых данных.");
+      }
+    };
+
+    showFileOptions();
+  </script>
+</body>
+</html>
