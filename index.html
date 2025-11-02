@@ -23,6 +23,49 @@
       color: #2c3e50;
     }
 
+    /* === Панель кнопок вверху === */
+    #topControls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 8px auto 12px;
+      flex-wrap: wrap;
+    }
+
+    #hintButton, #homeButton {
+      display: block;
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+      transition: all 0.3s ease;
+    }
+
+    #hintButton {
+      background: #007bff;
+      color: white;
+    }
+
+    #hintButton:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+      box-shadow: 0 5px 10px rgba(0,123,255,0.3);
+    }
+
+    #homeButton {
+      background: #6c757d;
+      color: white;
+    }
+
+    #homeButton:hover {
+      background: #545b62;
+      transform: translateY(-1px);
+      box-shadow: 0 5px 10px rgba(108,117,125,0.3);
+    }
+
     #fileList {
       display: flex;
       flex-wrap: wrap;
@@ -126,31 +169,51 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
     }
 
+    /* === ПРОГРЕСС-БАР С ТЕКСТОМ === */
     #progressBarWrapper {
+      position: relative;
       width: 90%;
       max-width: 400px;
-      height: 22px;
+      height: 36px;
       background: #e9ecef;
-      border-radius: 11px;
+      border-radius: 18px;
       overflow: hidden;
       box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
     }
 
     #progressBar {
+      position: absolute;
+      left: 0;
+      top: 0;
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, #28a745, #20c997);
       transition: width 0.4s ease;
+      z-index: 1;
     }
 
-    #stats, #result, #hintCount {
+    #stats {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       font-weight: 600;
       font-size: 0.95rem;
       color: #2c3e50;
+      white-space: nowrap;
+      z-index: 2;
+      text-shadow: 0 0 8px rgba(255,255,255,0.8);
+    }
+
+    #result {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #2c3e50;
+      text-align: center;
     }
 
     .control-btn {
@@ -167,6 +230,8 @@
       }
       .button { font-size: 1rem; padding: 11px 14px; }
       h2, #topicTitle { font-size: 1.15rem; }
+      #hintButton, #homeButton { font-size: 0.9rem; padding: 9px 16px; }
+      #stats { font-size: 0.9rem; }
       .control-btn { font-size: 0.85rem; padding: 7px 12px; }
     }
   </style>
@@ -179,18 +244,25 @@
   <div id="gameArea" style="display:none; flex-direction: column; height: 100vh;">
     <div id="topicTitle"></div>
 
+    <!-- ПАНЕЛЬ КНОПОК ВВЕРХУ -->
+    <div id="topControls">
+      <button id="hintButton">Подсказка</button>
+      <button id="homeButton">Начало</button>
+    </div>
+
     <div id="mainContainer">
       <div id="leftZone" class="scroll-zone"><div id="words"></div></div>
       <div id="rightZone" class="scroll-zone"><div id="transliterations"></div></div>
     </div>
 
     <div id="bottomControls">
-      <div id="progressBarWrapper"><div id="progressBar"></div></div>
-      <div id="stats"></div>
+      <div id="progressBarWrapper">
+        <div id="progressBar"></div>
+        <div id="stats">Правильных: 0 | Попыток: 0</div>
+      </div>
+
       <div id="result"></div>
-      <div id="hintCount">Подсказки использованы: 0</div>
       <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-        <button id="hintButton" class="button control-btn">Подсказка</button>
         <button id="loadProgressButton" class="button control-btn">Загрузить</button>
       </div>
     </div>
@@ -218,7 +290,7 @@
     const wordsDiv = document.getElementById("words");
     const transDiv = document.getElementById("transliterations");
     const hintButton = document.getElementById("hintButton");
-    const hintCountDiv = document.getElementById("hintCount");
+    const homeButton = document.getElementById("homeButton");
     const loadProgressButton = document.getElementById("loadProgressButton");
     const topicTitle = document.getElementById("topicTitle");
     const progressBar = document.getElementById("progressBar");
@@ -230,6 +302,11 @@
     let attempts = 0;
     let hintCount = 0;
     const gameStats = { correct: 0, attempts: 0, usedHints: 0 };
+
+    // Переменные для подсказки
+    let hintActive = false;
+    let hintFirstBtn = null;
+    let hintSecondBtn = null;
 
     function showFileOptions() {
       fileListDiv.innerHTML = '';
@@ -296,6 +373,18 @@
       }
     }
 
+    function updateStats() {
+      statsDiv.textContent = `Правильных: ${correct} | Попыток: ${attempts}`;
+    }
+
+    function clearHintHighlight() {
+      if (hintFirstBtn) hintFirstBtn.classList.remove("blue");
+      if (hintSecondBtn) hintSecondBtn.classList.remove("blue");
+      hintFirstBtn = null;
+      hintSecondBtn = null;
+      hintActive = false;
+    }
+
     function startGameWithWords(wordSets) {
       document.getElementById("title").textContent = "Выбери соответствие:";
       fileListDiv.style.display = "none";
@@ -315,12 +404,11 @@
       transDiv.innerHTML = '';
       resultDiv.textContent = '';
       progressBar.style.width = '0%';
-      statsDiv.textContent = '';
       correct = 0;
       attempts = 0;
       hintCount = 0;
-      hintCountDiv.textContent = "Подсказки использованы: 0";
       first = null;
+      clearHintHighlight(); // сбрасываем подсветку
 
       selected.forEach(item => {
         const btn = document.createElement("button");
@@ -349,6 +437,10 @@
 
     function checkAnswer(btn) {
       if (btn.disabled) return;
+
+      // Сброс подсветки подсказки при новом нажатии
+      clearHintHighlight();
+
       if (!first) {
         first = btn;
         btn.classList.add("yellow");
@@ -378,9 +470,7 @@
         if (correct === wordsDiv.children.length) {
           resultDiv.innerHTML = "<br>Готово! Отличная работа!";
           setTimeout(() => {
-            gameArea.style.display = "none";
-            fileListDiv.style.display = "flex";
-            showFileOptions();
+            returnToHome();
           }, 2800);
         }
       }
@@ -392,31 +482,37 @@
       progressBar.style.width = `${(done / total) * 100}%`;
     }
 
-    function updateStats() {
-      statsDiv.textContent = `Правильных: ${correct} | Попыток: ${attempts}`;
-    }
-
     hintButton.onclick = () => {
       if (!first || first.disabled) return;
+
+      // Сбрасываем старую подсветку
+      clearHintHighlight();
+
       const match = first.dataset.match;
       const side = first.dataset.side;
       const target = side === "ru" ? transDiv : wordsDiv;
       const matched = Array.from(target.querySelectorAll(".button:not([disabled])"))
         .find(b => b.textContent === match);
+
       if (matched) {
         first.classList.add("blue");
         matched.classList.add("blue");
+        hintFirstBtn = first;
+        hintSecondBtn = matched;
+        hintActive = true;
         hintCount++;
         gameStats.usedHints++;
-        hintCountDiv.textContent = `Подсказки использованы: ${hintCount}`;
-        setTimeout(() => {
-          first.classList.remove("blue");
-          matched.classList.remove("blue");
-        }, 1800);
       }
     };
 
-    // УДАЛЕНА КНОПКА "Сохранить" — логика тоже удалена
+    function returnToHome() {
+      gameArea.style.display = "none";
+      fileListDiv.style.display = "flex";
+      document.getElementById("title").textContent = "Что будем тренировать?";
+      showFileOptions();
+    }
+
+    homeButton.onclick = returnToHome;
 
     loadProgressButton.onclick = () => {
       const saved = localStorage.getItem('ivritProgress');
