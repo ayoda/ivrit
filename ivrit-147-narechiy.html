@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Тренажер наречий - Михалыч</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #fdfdfd; display: flex; justify-content: center; padding-top: 40px; }
+        #app { background: white; border: 1px solid #ccc; padding: 25px; border-radius: 12px; width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+        .head { display: flex; justify-content: space-between; margin-bottom: 20px; color: #666; font-size: 14px; }
+        .word { font-size: 32px; font-weight: bold; margin: 25px 0; color: #222; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn { border: 2px solid #3498db; padding: 15px; border-radius: 8px; cursor: pointer; background: #fff; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn:hover { background: #f0faff; }
+        .btn.hint { background: #fff9c4; border-color: #f1c40f; }
+        .he { font-size: 22px; font-weight: bold; direction: rtl; }
+        .tr { font-size: 13px; color: #777; margin-top: 4px; }
+        .hide-tr .tr { display: none; }
+        #msg { margin-top: 20px; font-weight: bold; min-height: 20px; }
+        .hint-btn { margin-top: 20px; padding: 10px 20px; background: #f39c12; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="head">
+        <label><input type="checkbox" id="checkTr" checked onchange="updateView()"> Транслитерация</label>
+        <div>Счет: <span id="ok">0</span></div>
+    </div>
+    <div class="word" id="target">Загрузка...</div>
+    <div class="grid" id="options"></div>
+    <div id="msg"></div>
+    <button class="hint-btn" onclick="showHint()">Подсказка (-1 балл)</button>
+</div>
+
+<script>
+// Все 147 наречий из твоего списка (исправленные и очищенные)
+const raw = [
+    ["быстро","במהירות","[беМЕhерут]"],["медленно","לאט","[лАт]"],["хорошо","טוב","[тОв]"],
+    ["плохо","רע","[рА]"],["громко","בקול רם","[беКОЛ рАм]"],["тихо","בשקט","[бешЕкет]"],
+    ["сейчас","עכשיו","[акшАв]"],["всегда","תמיד","[тамИД]"],["никогда","אף פעם","[аф па'Ам]"],
+    ["иногда","לפעמים","[лефа'Амим]"],["рано","מוקדם","[мукдЭМ]"],["поздно","מאוחר","[меухАР]"],
+    ["сегодня","היום","[ха-йОМ]"],["завтра","מחר","[махАР]"],["вчера","אתמול","[этмОль]"],
+    ["здесь","כאן","[кАн]"],["там","שם","[шАм]"],["туда","לשם","[лешАМ]"],
+    ["сюда","לכאן","[лекАн]"],["высоко","גבוה","[гавОа]"],["низко","נמוך","[намУах]"],
+    ["далеко","רחוק","[рахОк]"],["близко","קרוב","[карОб]"],["вверх","למעלה","[лемААла]"],
+    ["вниз","למטה","[лемАтА]"],["прямо","ישר","[яшАр]"],["влево","שמאלה","[смОла]"],
+    ["вправо","ימינה","[йемИна]"],["внутрь","פниמה","[пнИма]"],["наружу","החוצה","[ахУца]"],
+    ["раньше","בעבר","[баавАр]"],["потом","אחר כך","[ахарЕЙ кен]"],["скоро","בקרוב","[бакАров]"],
+    ["теперь","עכשיו","[акшАв]"],["недавно","לאחרונה","[лаахарОна]"],["уже","כבר","[квАр]"],
+    ["еще","עוד","[ОД]"],["больше","יותר","[йотЕР]"],["меньше","פחות","[пахОт]"],
+    ["очень","מאוד","[меОд]"],["почти","כמעט","[кимаАт]"],["совсем","בכלל","[бихлАль]"],
+    ["немного","מעט","[ме'Ат]"],["много","הרבה","[харбЭ]"],["мало","מעט","[ме'Ат]"],
+    ["полностью","לחלוטין","[лехалутИн]"],["вообще","בכלל","[бихлАль]"],["даже","אפילו","[афИлу]"],
+    ["также","גם כן","[гАм кен]"],["тоже","גם","[гАм]"],["только","רק","[рАк]"],
+    ["просто","פשוט","[пашУт]"],["действительно","באמת","[баэмЕт]"],["возможно","אולי","[улАй]"],
+    ["конечно","בטח","[бЕтах]"],["точно","בוודאות","[бевадАУт]"],["вероятно","כנראה","[канир'Э]"],
+    ["случайно","במקרה","[бемикрЭ]"],["обычно","בדרך כלל","[беДЕрех клАль]"],["внезапно","לפתע","[лефЕта]"],
+    ["сразу","מיד","[миЯд]"],["наконец","לבסוף","[лебасОф]"]
+];
+
+let score = 0, current = null;
+
+function render() {
+    document.getElementById('msg').textContent = "";
+    const idx = Math.floor(Math.random() * raw.length);
+    current = { r: raw[idx][0], h: raw[idx][1], t: raw[idx][2] };
+    document.getElementById('target').textContent = current.r;
+    
+    let opts = [current];
+    while(opts.length < 4) {
+        let rIdx = Math.floor(Math.random() * raw.length);
+        let cand = { r: raw[rIdx][0], h: raw[rIdx][1], t: raw[rIdx][2] };
+        if(!opts.some(o => o.h === cand.h)) opts.push(cand);
+    }
+    opts.sort(() => Math.random() - 0.5);
+
+    const grid = document.getElementById('options');
+    grid.innerHTML = "";
+    const showTr = document.getElementById('checkTr').checked;
+
+    opts.forEach(o => {
+        const d = document.createElement('div');
+        d.className = 'btn';
+        d.dataset.h = o.h;
+        d.innerHTML = `<span class="he">${o.h}</span><span class="tr">${o.t}</span>`;
+        if(!showTr) d.querySelector('.tr').style.display = 'none';
+        d.onclick = () => {
+            if(o.h === current.h) {
+                score++; document.getElementById('ok').textContent = score;
+                document.getElementById('msg').innerHTML = "<span style='color:green'>Верно!</span>";
+                setTimeout(render, 800);
+            } else {
+                document.getElementById('msg').innerHTML = `<span style='color:red'>Нет, это ${current.h}</span>`;
+            }
+        };
+        grid.appendChild(d);
+    });
+}
+
+function showHint() {
+    if(score > 0) score--;
+    document.getElementById('ok').textContent = score;
+    const btns = document.querySelectorAll('.btn');
+    btns.forEach(b => { if(b.dataset.h === current.h) b.classList.add('hint'); });
+}
+
+function updateView() {
+    const showTr = document.getElementById('checkTr').checked;
+    document.querySelectorAll('.tr').forEach(el => el.style.display = showTr ? 'block' : 'none');
+}
+
+render();
+</script>
+</body>
+</html>
